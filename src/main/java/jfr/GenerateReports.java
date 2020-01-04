@@ -46,9 +46,15 @@ public class GenerateReports {
 
 	private static void executeCommands(List<String> commandsToExecute) {
 		Runtime rt = Runtime.getRuntime();
+		String os = System.getProperty("os.name").toLowerCase();
 		for (String command : commandsToExecute) {
 			try {
-				rt.exec(new String[] { "/bin/bash", "-c", command });
+				if(os.contains("win")) {
+					rt.exec(new String[] { "cmd.exe", "/c", command });
+				}
+				else {
+					rt.exec(new String[] { "/bin/bash", "-c", command });
+				}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
