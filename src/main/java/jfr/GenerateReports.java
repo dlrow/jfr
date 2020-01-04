@@ -48,7 +48,7 @@ public class GenerateReports {
 		Runtime rt = Runtime.getRuntime();
 		for (String command : commandsToExecute) {
 			try {
-				rt.exec(new String[] { "cmd.exe", "/c", command });
+				rt.exec(new String[] { "/bin/bash", "-c", command });
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -64,9 +64,9 @@ public class GenerateReports {
 				if (fileName.indexOf('^') > -1) {
 					fileName = fileName.replace('^', '_');
 				}
-				String dir = "Reports\\" + entry.getKey() + "\\" + fileName;
+				String dir = "Reports"+File.separator + entry.getKey() + File.separator + fileName;
 				new File(dir).mkdirs();
-				String cmd = "java -jar " + "JFRParser.jar" + " /jfr " + entry.getKey() + " /o " + dir + "\\ /ecid \""
+				String cmd = "java -jar " + "JFRParser.jar" + " /jfr " + entry.getKey() + " /o " + dir + File.separator+" /ecid \""
 						+ ecid + "\"";
 				commands.add(cmd);
 			}

@@ -52,7 +52,7 @@ public class ReadReportAndWriteToExcel {
 				}
 				try {
 					BufferedReader in = new BufferedReader(
-							new FileReader("Reports\\" + entry.getKey() + "\\" + fileName + "\\.html"));
+							new FileReader("Reports"+File.separator + entry.getKey() + File.separator + fileName + File.separator+".html"));
 					String str;
 					while ((str = in.readLine()) != null) {
 						if (str.contains("Duration")) {
