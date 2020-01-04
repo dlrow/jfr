@@ -1,6 +1,10 @@
 package jfr;
+
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -17,13 +21,100 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-public class GenerateReports {
+//stores position of ecids on excel sheet
+class ecidCell {
+	int x;
+	int y;
 
-	public static void main(String[] args) {
-		String excelPath = getExcelPath();
-		generateReport(excelPath);
+	public ecidCell(int x, int y) {
+		super();
+		this.x = x;
+		this.y = y;
 	}
 
+}
+
+public class GenerateReports  {
+
+	// ecid to it's position on excel sheet
+	static Map<String, ecidCell> ecidPos = new HashMap<>();
+
+	// ecids(plural) to their corresponding .jfr
+	static Map<String, List<String>> ecids;
+	
+	static ProgressStatus pgs = new ProgressStatus();
+
+	public static void main(String[] args) {
+		pgs.setProgressValue(10);
+		generateReport();
+		populateTime();
+	}
+
+	static void populateTime() {
+		String excelPath = getExcelPath();
+		pgs.setProgressValue(80);
+		Map<String, String> ecidTime = getTimeForEachEcids(ecids);
+		pgs.setProgressValue(90);
+		writeToExcel(ecidTime, excelPath);
+		pgs.setProgressValue(100);
+	}
+
+	private static void generateReport() {
+		String excelPath = getExcelPath();
+		pgs.setProgressValue(20);
+		ecids = getEcids(excelPath);
+		pgs.setProgressValue(30);
+		List<String> commandsToExecute = createCommands(ecids);
+		pgs.setProgressValue(40);
+		try {
+			executeCommands(commandsToExecute);
+		} catch (InterruptedException e1) {
+			e1.printStackTrace();
+		}
+		pgs.setProgressValue(70);
+	}
+
+	//executes commands
+	private static void executeCommands(List<String> commandsToExecute) throws InterruptedException {
+		Runtime rt = Runtime.getRuntime();
+		String os = System.getProperty("os.name").toLowerCase();
+		for (String command : commandsToExecute) {
+			try {
+				if (os.contains("win")) {
+					ProcessBuilder pb = new ProcessBuilder(new String[] { "cmd.exe", "/c", command });
+				    Process p = pb.start(); 
+					p.waitFor();
+				} else {
+					Process p = rt.exec(new String[] { "/bin/bash", "-c", command });
+					p.waitFor();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	//creates commands to be executed 
+	private static List<String> createCommands(Map<String, List<String>> ecids) {
+		List<String> commands = new ArrayList<>();
+		for (Entry<String, List<String>> entry : ecids.entrySet()) {
+
+			for (String ecid : entry.getValue()) {
+				String fileName = ecid;
+				if (fileName.indexOf('^') > -1) {
+					fileName = fileName.replace('^', '_');
+				}
+				String dir = "Reports" + File.separator + entry.getKey() + File.separator + fileName;
+				new File(dir).mkdirs();
+				String cmd = "java -jar " + "JFRParser.jar" + " /jfr " + entry.getKey() + " /o " + dir + File.separator
+						+ " /ecid \"" + ecid + "\"";
+				commands.add(cmd);
+			}
+		}
+		return commands;
+	}
+
+	// gets the excel name from current directory
 	protected static String getExcelPath() {
 		String excelFileName = "";
 		File file = new File(System.getProperty("user.dir"));
@@ -37,49 +128,7 @@ public class GenerateReports {
 		return excelFileName;
 	}
 
-	private static void generateReport(String excelPath) {
-		Map<String, List<String>> ecids = getEcids(excelPath);
-		List<String> commandsToExecute = createCommands(ecids);
-		executeCommands(commandsToExecute);
-		System.out.println("report generated");
-	}
-
-	private static void executeCommands(List<String> commandsToExecute) {
-		Runtime rt = Runtime.getRuntime();
-		String os = System.getProperty("os.name").toLowerCase();
-		for (String command : commandsToExecute) {
-			try {
-				if(os.contains("win")) {
-					rt.exec(new String[] { "cmd.exe", "/c", command });
-				}
-				else {
-					rt.exec(new String[] { "/bin/bash", "-c", command });
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
-	private static List<String> createCommands(Map<String, List<String>> ecids) {
-		List<String> commands = new ArrayList<>();
-		for (Entry<String, List<String>> entry : ecids.entrySet()) {
-
-			for (String ecid : entry.getValue()) {
-				String fileName = ecid;
-				if (fileName.indexOf('^') > -1) {
-					fileName = fileName.replace('^', '_');
-				}
-				String dir = "Reports"+File.separator + entry.getKey() + File.separator + fileName;
-				new File(dir).mkdirs();
-				String cmd = "java -jar " + "JFRParser.jar" + " /jfr " + entry.getKey() + " /o " + dir + File.separator+" /ecid \""
-						+ ecid + "\"";
-				commands.add(cmd);
-			}
-		}
-		return commands;
-	}
-
+	// reads the excel for ecids
 	protected static Map<String, List<String>> getEcids(String excelPath) {
 		Map<String, List<String>> ecids = new HashMap<>();
 		Map<Integer, String> latestJfrFoundForColumn = new HashMap<>();
@@ -103,8 +152,7 @@ public class GenerateReports {
 							if (!ecids.containsKey(jfrName))
 								ecids.put(jfrName, new ArrayList<>());
 							ecids.get(jfrName).add(curr);
-							ReadReportAndWriteToExcel.ecidPos.put(curr,
-									new ecidCell(currentCell.getRowIndex(), currentCell.getColumnIndex()));
+							ecidPos.put(curr, new ecidCell(currentCell.getRowIndex(), currentCell.getColumnIndex()));
 						}
 					}
 
@@ -115,6 +163,60 @@ public class GenerateReports {
 			e.printStackTrace();
 		}
 		return ecids;
+	}
+	
+	// creates a map of ecids to their corresponding time
+	private static Map<String, String> getTimeForEachEcids(Map<String, List<String>> ecids) {
+		Map<String, String> ecidTime = new HashMap<String, String>();
+		for (Entry<String, List<String>> entry : ecids.entrySet()) {
+
+			for (String ecid : entry.getValue()) {
+				String fileName = ecid;
+				if (fileName.indexOf('^') > -1) {
+					fileName = fileName.replace('^', '_');
+				}
+				try {
+					BufferedReader in = new BufferedReader(
+							new FileReader("Reports"+File.separator + entry.getKey() + File.separator + fileName + File.separator+".html"));
+					String str;
+					while ((str = in.readLine()) != null) {
+						if (str.contains("Duration")) {
+							int indexOfDuration = str.indexOf("Duration");
+							int begin = str.indexOf("text", indexOfDuration);
+							int end = str.indexOf("td", begin);
+							String time = str.substring(begin + 6, end - 2);
+							ecidTime.put(ecid, time);
+						}
+					}
+					in.close();
+				} catch (IOException e) {
+				}
+			}
+		}
+		return ecidTime;
+	}
+
+	
+	//writes time to excel sheet 
+	private static void writeToExcel(Map<String, String> ecidTime, String excelPath) {
+		try {
+
+			FileInputStream excelFile = new FileInputStream(new File(excelPath));
+			Workbook workbook = new XSSFWorkbook(excelFile);
+			Sheet datatypeSheet = workbook.getSheetAt(0);
+			for (Entry<String, String> entry : ecidTime.entrySet()) {
+				ecidCell currEcidCell = ecidPos.get(entry.getKey());
+				Cell cell = datatypeSheet.getRow(currEcidCell.x).createCell(currEcidCell.y + 1);
+				cell.setCellValue(entry.getValue());
+			}
+
+			FileOutputStream outFile = new FileOutputStream(new File(excelPath));
+			workbook.write(outFile);
+			outFile.close();
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 }
