@@ -7,7 +7,8 @@ public class ProgressStatus {
 	JFrame j;
 	JProgressBar jb;
 	public ProgressStatus() {
-		j = new JFrame();
+		j = new JFrame("Generating PSR Reports");
+		
 		jb = new JProgressBar(0, 100);
 		jb.setBounds(40, 40, 160, 30);
 		jb.setValue(0);

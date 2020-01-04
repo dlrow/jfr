@@ -65,7 +65,7 @@ public class GenerateReports  {
 		ecids = getEcids(excelPath);
 		pgs.setProgressValue(30);
 		List<String> commandsToExecute = createCommands(ecids);
-		pgs.setProgressValue(40);
+		pgs.setProgressValue(50);
 		try {
 			executeCommands(commandsToExecute);
 		} catch (InterruptedException e1) {
