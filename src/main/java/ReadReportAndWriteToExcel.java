@@ -30,7 +30,7 @@ public class ReadReportAndWriteToExcel {
 	static Map<String, ecidCell> ecidPos = new HashMap<>();
 
 	public static void main(String[] args) {
-		String excelPath = "test.xlsx";
+		String excelPath = GenerateReports.getExcelPath();
 		populateTime(excelPath);
 	}
 
@@ -45,9 +45,13 @@ public class ReadReportAndWriteToExcel {
 		for (Entry<String, List<String>> entry : ecids.entrySet()) {
 
 			for (String ecid : entry.getValue()) {
-
+				String fileName = ecid;
+				if (fileName.indexOf('^') > -1) {
+					fileName = fileName.replace('^', '_');
+				}
 				try {
-					BufferedReader in = new BufferedReader(new FileReader("Reports\\"+entry.getKey() + "\\" + ecid + "\\.html"));
+					BufferedReader in = new BufferedReader(
+							new FileReader("Reports\\" + entry.getKey() + "\\" + fileName + "\\.html"));
 					String str;
 					while ((str = in.readLine()) != null) {
 						if (str.contains("Duration")) {

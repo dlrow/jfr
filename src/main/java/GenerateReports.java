@@ -19,8 +19,21 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 public class GenerateReports {
 
 	public static void main(String[] args) {
-		String excelPath = "test.xlsx";
+		String excelPath = getExcelPath();
 		generateReport(excelPath);
+	}
+
+	protected static String getExcelPath() {
+		String excelFileName = "";
+		File file = new File(System.getProperty("user.dir"));
+		File[] list = file.listFiles();
+		if (list != null)
+			for (File fil : list) {
+				if (!fil.isDirectory() && fil.getName().contains(".xls")) {
+					excelFileName = fil.getName();
+				}
+			}
+		return excelFileName;
 	}
 
 	private static void generateReport(String excelPath) {
@@ -46,7 +59,11 @@ public class GenerateReports {
 		for (Entry<String, List<String>> entry : ecids.entrySet()) {
 
 			for (String ecid : entry.getValue()) {
-				String dir = "Reports\\" + entry.getKey() + "\\" + ecid;
+				String fileName = ecid;
+				if (fileName.indexOf('^') > -1) {
+					fileName = fileName.replace('^', '_');
+				}
+				String dir = "Reports\\" + entry.getKey() + "\\" + fileName;
 				new File(dir).mkdirs();
 				String cmd = "java -jar " + "JFRParser.jar" + " /jfr " + entry.getKey() + " /o " + dir + "\\ /ecid \""
 						+ ecid + "\"";
