@@ -21,42 +21,19 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-//stores position of ecids on excel sheet
-class ecidCell {
-	int x;
-	int y;
-
-	public ecidCell(int x, int y) {
-		super();
-		this.x = x;
-		this.y = y;
-	}
-
-}
-
-public class GenerateReports  {
+public class GenerateReports {
 
 	// ecid to it's position on excel sheet
-	static Map<String, ecidCell> ecidPos = new HashMap<>();
+	static Map<String, EcidCell> ecidPos = new HashMap<>();
 
 	// ecids(plural) to their corresponding .jfr
 	static Map<String, List<String>> ecids;
-	
+
+	// shows progress
 	static ProgressStatus pgs = new ProgressStatus();
 
 	public static void main(String[] args) {
-		pgs.setProgressValue(10);
 		generateReport();
-		populateTime();
-	}
-
-	static void populateTime() {
-		String excelPath = getExcelPath();
-		pgs.setProgressValue(80);
-		Map<String, String> ecidTime = getTimeForEachEcids(ecids);
-		pgs.setProgressValue(90);
-		writeToExcel(ecidTime, excelPath);
-		pgs.setProgressValue(100);
 	}
 
 	private static void generateReport() {
@@ -71,30 +48,42 @@ public class GenerateReports  {
 		} catch (InterruptedException e1) {
 			e1.printStackTrace();
 		}
-		pgs.setProgressValue(70);
+		pgs.setProgressValue(80);
+		Map<String, String> ecidTime = getTimeForEachEcids(ecids);
+		pgs.setProgressValue(90);
+		writeToExcel(ecidTime, excelPath);
+		pgs.setProgressValue(100);
 	}
 
-	//executes commands
+	// executes commands
 	private static void executeCommands(List<String> commandsToExecute) throws InterruptedException {
 		Runtime rt = Runtime.getRuntime();
 		String os = System.getProperty("os.name").toLowerCase();
+		List<String> cmnds = new ArrayList<>();
+		if (os.contains("win")) {
+			cmnds.add("cmd.exe");
+			cmnds.add("/c");
+		} else if (os.contains("mac")) {
+			cmnds.add("/bin/bash");
+			cmnds.add("-c");
+		} else {
+			cmnds.add("bash");
+			cmnds.add("-c");
+		}
 		for (String command : commandsToExecute) {
 			try {
-				if (os.contains("win")) {
-					ProcessBuilder pb = new ProcessBuilder(new String[] { "cmd.exe", "/c", command });
-				    Process p = pb.start(); 
-					p.waitFor();
-				} else {
-					Process p = rt.exec(new String[] { "/bin/bash", "-c", command });
-					p.waitFor();
-				}
+				cmnds.add(command);
+				ProcessBuilder pb = new ProcessBuilder(cmnds);
+				Process p = pb.start();
+				p.waitFor();
+				cmnds.remove(command);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
 	}
 
-	//creates commands to be executed 
+	// creates commands to be executed
 	private static List<String> createCommands(Map<String, List<String>> ecids) {
 		List<String> commands = new ArrayList<>();
 		for (Entry<String, List<String>> entry : ecids.entrySet()) {
@@ -152,7 +141,7 @@ public class GenerateReports  {
 							if (!ecids.containsKey(jfrName))
 								ecids.put(jfrName, new ArrayList<>());
 							ecids.get(jfrName).add(curr);
-							ecidPos.put(curr, new ecidCell(currentCell.getRowIndex(), currentCell.getColumnIndex()));
+							ecidPos.put(curr, new EcidCell(currentCell.getRowIndex(), currentCell.getColumnIndex()));
 						}
 					}
 
@@ -164,7 +153,7 @@ public class GenerateReports  {
 		}
 		return ecids;
 	}
-	
+
 	// creates a map of ecids to their corresponding time
 	private static Map<String, String> getTimeForEachEcids(Map<String, List<String>> ecids) {
 		Map<String, String> ecidTime = new HashMap<String, String>();
@@ -176,8 +165,8 @@ public class GenerateReports  {
 					fileName = fileName.replace('^', '_');
 				}
 				try {
-					BufferedReader in = new BufferedReader(
-							new FileReader("Reports"+File.separator + entry.getKey() + File.separator + fileName + File.separator+".html"));
+					BufferedReader in = new BufferedReader(new FileReader("Reports" + File.separator + entry.getKey()
+							+ File.separator + fileName + File.separator + ".html"));
 					String str;
 					while ((str = in.readLine()) != null) {
 						if (str.contains("Duration")) {
@@ -196,8 +185,7 @@ public class GenerateReports  {
 		return ecidTime;
 	}
 
-	
-	//writes time to excel sheet 
+	// writes time to excel sheet
 	private static void writeToExcel(Map<String, String> ecidTime, String excelPath) {
 		try {
 
@@ -205,7 +193,7 @@ public class GenerateReports  {
 			Workbook workbook = new XSSFWorkbook(excelFile);
 			Sheet datatypeSheet = workbook.getSheetAt(0);
 			for (Entry<String, String> entry : ecidTime.entrySet()) {
-				ecidCell currEcidCell = ecidPos.get(entry.getKey());
+				EcidCell currEcidCell = ecidPos.get(entry.getKey());
 				Cell cell = datatypeSheet.getRow(currEcidCell.x).createCell(currEcidCell.y + 1);
 				cell.setCellValue(entry.getValue());
 			}
