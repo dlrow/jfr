@@ -10,11 +10,11 @@ public class ProgressStatus {
 		j = new JFrame("Generating PSR Reports");
 		
 		jb = new JProgressBar(0, 100);
-		jb.setBounds(40, 40, 160, 30);
+		jb.setBounds(40, 40, 300, 30);
 		jb.setValue(0);
 		jb.setStringPainted(true);
 		j.add(jb);
-		j.setSize(250, 150);
+		j.setSize(400, 150);
 		j.setLayout(null);
 		j.setVisible(true);
 	}
